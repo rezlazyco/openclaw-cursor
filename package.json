@@ -1,0 +1,79 @@
+{
+  "name": "openclaw-cursor",
+  "version": "0.1.8",
+  "description": "OpenClaw Cursor agent harness and model provider plugin backed by @cursor/sdk.",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "openclaw.plugin.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rezlazyco/openclaw-cursor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rezlazyco/openclaw-cursor/issues"
+  },
+  "homepage": "https://github.com/rezlazyco/openclaw-cursor#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "keywords": [
+    "openclaw",
+    "cursor",
+    "plugin",
+    "agent",
+    "harness"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "install": {
+      "npmSpec": "openclaw-cursor",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.6.11"
+    },
+    "compat": {
+      "pluginApi": ">=2026.6.11"
+    }
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.6.11"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@cursor/sdk": "1.0.23",
+    "typebox": "1.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "esbuild": "^0.25.0",
+    "openclaw": "^2026.6.11",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "scripts": {
+    "build": "esbuild index.ts provider-discovery.ts --outdir=dist --outbase=. --platform=node --format=esm --bundle --packages=external --external:openclaw --external:openclaw/*",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration:up": "bash tests/integration/scripts/compose.sh up -d openclaw-gateway",
+    "test:integration:down": "bash tests/integration/scripts/compose.sh down",
+    "test:integration:logs": "bash tests/integration/scripts/compose.sh logs -f openclaw-gateway",
+    "test:integration:cli": "bash tests/integration/scripts/compose.sh run --rm openclaw-cli",
+    "test:integration:bootstrap": "bash tests/integration/scripts/bootstrap.sh",
+    "test:integration:smoke": "bash tests/integration/scripts/smoke.sh",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

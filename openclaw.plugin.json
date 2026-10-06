@@ -1,0 +1,133 @@
+{
+  "id": "cursor",
+  "name": "Cursor",
+  "description": "OpenClaw Cursor agent harness and model provider plugin backed by @cursor/sdk.",
+  "providers": ["cursor"],
+  "providerCatalogEntry": "./dist/provider-discovery.js",
+  "syntheticAuthRefs": ["cursor"],
+  "nonSecretAuthMarkers": ["cursor-sdk"],
+  "activation": {
+    "onStartup": false,
+    "onAgentHarnesses": ["cursor"]
+  },
+  "commandAliases": [
+    {
+      "name": "cursor",
+      "kind": "runtime-slash",
+      "cliCommand": "plugins"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "runtime": {
+        "type": "string",
+        "enum": ["local", "cloud"],
+        "default": "local"
+      },
+      "apiKeyEnv": {
+        "type": "string",
+        "default": "CURSOR_API_KEY"
+      },
+      "discovery": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "default": true },
+          "timeoutMs": {
+            "type": "number",
+            "minimum": 1,
+            "default": 15000
+          }
+        }
+      },
+      "local": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "settingSources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["project", "user", "team", "mdm", "all"]
+            },
+            "default": []
+          },
+          "sandboxEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "autoReview": {
+            "type": "boolean",
+            "default": false
+          },
+          "useHttp1ForAgent": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "cloud": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "repoUrl": { "type": "string" },
+          "startingRef": { "type": "string" },
+          "autoCreatePR": { "type": "boolean", "default": false },
+          "skipReviewerRequest": { "type": "boolean", "default": true }
+        }
+      },
+      "cursorDynamicToolsExclude": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": []
+      }
+    }
+  },
+  "uiHints": {
+    "runtime": {
+      "label": "Cursor Runtime",
+      "help": "Use a local Cursor agent against the workspace, or a Cursor-hosted cloud agent."
+    },
+    "apiKeyEnv": {
+      "label": "API Key Env Var",
+      "help": "Environment variable that holds the Cursor API key (user or service-account key)."
+    },
+    "discovery": {
+      "label": "Model Discovery",
+      "help": "Live model catalog discovery via Cursor.models.list().",
+      "advanced": true
+    },
+    "local": {
+      "label": "Local Runtime",
+      "help": "Options for local Cursor agents.",
+      "advanced": true
+    },
+    "local.sandboxEnabled": {
+      "label": "Sandbox",
+      "help": "Enable Cursor local sandboxOptions for tool execution.",
+      "advanced": true
+    },
+    "local.autoReview": {
+      "label": "Auto-review",
+      "help": "Enable Cursor Auto-review classifier for local tool calls when the backend supports it.",
+      "advanced": true
+    },
+    "local.useHttp1ForAgent": {
+      "label": "HTTP/1.1 for Agent",
+      "help": "Force HTTP/1.1 + SSE instead of HTTP/2. Enable behind HTTP proxies that break HTTP/2 streaming (common with corporate or country egress proxies).",
+      "advanced": true
+    },
+    "cloud": {
+      "label": "Cloud Runtime",
+      "help": "Options for Cursor-hosted cloud agents.",
+      "advanced": true
+    },
+    "cursorDynamicToolsExclude": {
+      "label": "Excluded OpenClaw Tools",
+      "help": "OpenClaw tool names that should not be bridged into Cursor customTools.",
+      "advanced": true
+    }
+  }
+}

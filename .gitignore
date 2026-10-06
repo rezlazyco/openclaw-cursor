@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-packages/
+*.tgz
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+tests/integration/.openclaw-state/
+tests/integration/.openclaw-workspace/

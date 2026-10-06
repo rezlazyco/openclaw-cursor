@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-cursor",
+  "name": "@rezlazyco/openclaw-cursor",
   "version": "0.1.8",
   "description": "OpenClaw Cursor agent harness and model provider plugin backed by @cursor/sdk.",
   "type": "module",
@@ -33,7 +33,7 @@
       "./dist/index.js"
     ],
     "install": {
-      "npmSpec": "openclaw-cursor",
+      "npmSpec": "@rezlazyco/openclaw-cursor",
       "defaultChoice": "npm",
       "minHostVersion": ">=2026.6.11"
     },

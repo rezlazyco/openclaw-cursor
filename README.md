@@ -13,9 +13,9 @@ It mirrors the bundled Codex plugin shape:
 Requires OpenClaw **≥ 2026.6.11** (see `openclaw.install.minHostVersion` in `package.json`).
 
 ```bash
-openclaw plugins install openclaw-cursor
+openclaw plugins install @rezlazyco/openclaw-cursor
 # update:
-# openclaw plugins install --force openclaw-cursor
+# openclaw plugins install --force @rezlazyco/openclaw-cursor
 ```
 
 ### Local checkout

@@ -28,6 +28,8 @@ import {
 } from "./session-binding.js";
 import { withCursorBindingLease } from "./binding-store.js";
 import { trackCursorActiveRun } from "./conversation-control.js";
+import { buildBackgroundJobCustomTools } from "./background-jobs-tool.js";
+import { mergeCursorCustomTools } from "./custom-tools-merge.js";
 import { buildCursorToolBridge } from "./tool-bridge.js";
 
 export type {
@@ -249,17 +251,32 @@ async function runBoundTurn(params: {
     | Awaited<ReturnType<typeof buildCursorToolBridge>>
     | undefined;
   if (pluginConfig.runtime === "local") {
+    const bridgeParams = buildConversationToolBridgeParams({
+      event: params.event,
+      ctx: params.ctx,
+      data: params.data,
+      config: params.config,
+    });
     toolBridge = await buildCursorToolBridge({
-      params: buildConversationToolBridgeParams({
-        event: params.event,
-        ctx: params.ctx,
-        data: params.data,
-        config: params.config,
-      }),
+      params: bridgeParams,
       excludeToolNames: pluginConfig.cursorDynamicToolsExclude,
       agentId: params.data.agentId,
     });
-    customTools = toolBridge?.customTools;
+    const modelId =
+      (typeof params.data.start?.model === "string" && params.data.start.model.trim()
+        ? params.data.start.model.trim()
+        : undefined) ?? "composer-2.5";
+    const workspaceDir = params.data.workspaceDir || process.cwd();
+    const backgroundTools =
+      pluginConfig.local.backgroundJobs.enabled
+        ? buildBackgroundJobCustomTools({
+            pluginConfig,
+            workspaceDir,
+            modelId,
+            bridgeParams,
+          })
+        : undefined;
+    customTools = mergeCursorCustomTools(toolBridge?.customTools, backgroundTools);
   }
 
   const ensured = await ensureConversationAgent({

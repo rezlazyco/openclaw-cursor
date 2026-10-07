@@ -29,6 +29,7 @@ import {
 } from "./src/session-binding.js";
 import { ensureCursorRipgrepConfigured } from "./src/ripgrep.js";
 import { readCursorPluginConfig } from "./src/config.js";
+import { configureBackgroundJobWorkflow } from "./src/background-jobs-workflow.js";
 import { applyCursorSdkNetworkConfig } from "./src/sdk-network.js";
 
 const ENDED_SESSION_REASONS: ReadonlySet<string> = new Set([
@@ -105,6 +106,25 @@ export default definePluginEntry({
       }
     })();
     const bindingStore = createCursorBindingStore(keyedState);
+
+    const scheduleSessionTurn = (
+      api as {
+        session?: {
+          workflow?: {
+            scheduleSessionTurn?: (params: unknown) => Promise<unknown>;
+          };
+        };
+      }
+    ).session?.workflow?.scheduleSessionTurn;
+    if (scheduleSessionTurn) {
+      configureBackgroundJobWorkflow({
+        scheduleSessionTurn: (params) => scheduleSessionTurn(params),
+      });
+    } else {
+      api.logger.debug?.(
+        "cursor: session.workflow.scheduleSessionTurn unavailable; background job webchat notify disabled",
+      );
+    }
 
     api.registerAgentHarness(
       createCursorAgentHarness({

@@ -17,6 +17,10 @@ describe("readCursorPluginConfig", () => {
     expect(config.runtime).toBe("local");
     expect(config.apiKeyEnv).toBe("CURSOR_API_KEY");
     expect(config.local.settingSources).toEqual([]);
+    expect(config.local.backgroundJobs.enabled).toBe(true);
+    expect(config.local.backgroundJobs.maxConcurrent).toBe(2);
+    expect(config.local.backgroundJobs.notifyOnComplete).toBe(true);
+    expect(config.local.backgroundJobs.persistJobs).toBe(false);
   });
 
   it("reads cloud runtime", () => {
@@ -35,6 +39,23 @@ describe("readCursorPluginConfig", () => {
     });
     expect(config.local.autoReview).toBe(true);
     expect(config.local.sandboxEnabled).toBe(true);
+  });
+
+  it("reads local.backgroundJobs", () => {
+    const config = readCursorPluginConfig({
+      local: {
+        backgroundJobs: {
+          enabled: false,
+          maxConcurrent: 5,
+          notifyOnComplete: false,
+          persistJobs: true,
+        },
+      },
+    });
+    expect(config.local.backgroundJobs.enabled).toBe(false);
+    expect(config.local.backgroundJobs.maxConcurrent).toBe(5);
+    expect(config.local.backgroundJobs.notifyOnComplete).toBe(false);
+    expect(config.local.backgroundJobs.persistJobs).toBe(true);
   });
 });
 

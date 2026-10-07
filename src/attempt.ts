@@ -39,6 +39,8 @@ import {
   attachCursorMirrorIdentity,
   dualWriteCursorTranscriptBestEffort,
 } from "./transcript-mirror.js";
+import { buildBackgroundJobCustomTools } from "./background-jobs-tool.js";
+import { mergeCursorCustomTools } from "./custom-tools-merge.js";
 import {
   buildCursorToolBridge,
   type CursorToolTelemetry,
@@ -270,6 +272,11 @@ export async function runCursorAttempt(
     });
   }
 
+  const userPromptText =
+    typeof params.transcriptPrompt === "string" && params.transcriptPrompt.trim()
+      ? params.transcriptPrompt
+      : params.prompt;
+
   const apiKeyFingerprint = await fingerprintSecret(auth.apiKey);
   const mcpServers = buildCursorMcpServers({
     config: params.config,
@@ -330,7 +337,16 @@ export async function runCursorAttempt(
             }),
         })
       : undefined;
-  const customTools = toolBridge?.customTools;
+  const backgroundTools =
+    pluginConfig.runtime === "local" && pluginConfig.local.backgroundJobs.enabled
+      ? buildBackgroundJobCustomTools({
+          pluginConfig,
+          workspaceDir,
+          modelId,
+          bridgeParams: params,
+        })
+      : undefined;
+  const customTools = mergeCursorCustomTools(toolBridge?.customTools, backgroundTools);
   const toolTelemetry: CursorToolTelemetry | undefined = toolBridge?.telemetry;
 
   let agent: SDKAgent | undefined;
@@ -556,7 +572,7 @@ export async function runCursorAttempt(
     await disposeAgent(agent);
   }
 
-  const assistantTexts = bridge.finalizeAssistantTexts();
+  let assistantTexts = bridge.finalizeAssistantTexts();
   const mergedToolMetas = [
     ...(toolTelemetry?.toolMetas ?? []),
     ...bridge.state.toolMetas.filter(
@@ -565,10 +581,6 @@ export async function runCursorAttempt(
     ),
   ];
 
-  const userPromptText =
-    typeof params.transcriptPrompt === "string" && params.transcriptPrompt.trim()
-      ? params.transcriptPrompt
-      : params.prompt;
   const turnId = `${cursorAgentId ?? params.sessionId}:${params.runId ?? Date.now()}`;
   const messagesSnapshot: AgentMessage[] = [
     attachCursorMirrorIdentity(

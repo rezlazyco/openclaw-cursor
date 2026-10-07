@@ -213,6 +213,7 @@ Notes:
 ## Runtime notes
 
 - OpenClaw messaging tools (`message`, `sessions_send`, …) are bridged as Cursor `customTools` (local). Successful sends set `didSendViaMessagingTool` on the attempt result.
+- **Background jobs** (local runtime): when `local.backgroundJobs.enabled` is true (default), the Cursor agent gets `openclaw_background_job` (`spawn` / `status` / `list` / `cancel`). The system prompt instructs the model to classify each turn: small tasks stay inline; large or async work must call `spawn` first (full `task` text) and reply with the real `jobId` from the tool. On completion, `local.backgroundJobs.notifyOnComplete` pushes a user-visible message via OpenClaw `sessions_send` (same `sessionKey`, any channel including webchat), then the channel `message` tool when routing fields are present, then `session.workflow.scheduleSessionTurn` (`deliveryMode: announce`) when the host allows it (official bundled install). In-memory jobs are lost on gateway restart unless `local.backgroundJobs.persistJobs` is enabled (active runs are not resumed).
 - Owner tool `cursor_agents` lists/gets Cursor agents and can attach one to the current OpenClaw session (`action: resume`, `attach: true`).
 - Session binding mutations are fenced with binding leases to avoid concurrent overwrite across workers/turns.
 - User/assistant/tool messages are dual-written into the OpenClaw session transcript (best-effort).

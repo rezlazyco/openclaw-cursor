@@ -65,6 +65,20 @@
           "useHttp1ForAgent": {
             "type": "boolean",
             "default": false
+          },
+          "backgroundJobs": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": { "type": "boolean", "default": true },
+              "maxConcurrent": {
+                "type": "number",
+                "minimum": 1,
+                "default": 2
+              },
+              "notifyOnComplete": { "type": "boolean", "default": true },
+              "persistJobs": { "type": "boolean", "default": false }
+            }
           }
         }
       },
@@ -117,6 +131,31 @@
     "local.useHttp1ForAgent": {
       "label": "HTTP/1.1 for Agent",
       "help": "Force HTTP/1.1 + SSE instead of HTTP/2. Enable behind HTTP proxies that break HTTP/2 streaming (common with corporate or country egress proxies).",
+      "advanced": true
+    },
+    "local.backgroundJobs": {
+      "label": "Background Jobs",
+      "help": "Expose openclaw_background_job custom tool for non-blocking Cursor work on local runtime.",
+      "advanced": true
+    },
+    "local.backgroundJobs.enabled": {
+      "label": "Background Jobs Enabled",
+      "help": "When true, the Cursor agent can spawn background jobs via openclaw_background_job.",
+      "advanced": true
+    },
+    "local.backgroundJobs.maxConcurrent": {
+      "label": "Max Concurrent Background Jobs",
+      "help": "Maximum number of background Cursor agents running at once.",
+      "advanced": true
+    },
+    "local.backgroundJobs.notifyOnComplete": {
+      "label": "Notify On Complete",
+      "help": "Send a channel message when a background job finishes (requires messaging context from the spawn turn).",
+      "advanced": true
+    },
+    "local.backgroundJobs.persistJobs": {
+      "label": "Persist Job Registry",
+      "help": "Write background job status to the OpenClaw state dir (survives plugin reload; not active runs).",
       "advanced": true
     },
     "cloud": {

@@ -34,6 +34,10 @@ Open the control UI at `http://127.0.0.1:18789/` (port overridable via `OPENCLAW
 
 After changing plugin code, run `npm run build` and `npm run test:integration:bootstrap` (or restart the gateway if only config changed).
 
+### Background jobs (manual)
+
+With `plugins.entries.cursor.config.local.backgroundJobs.enabled` (default `true`), ask the Cursor agent for a long task and confirm it calls `openclaw_background_job` with `action=spawn`, replies with a `jobId`, and `action=status` reports progress. Smoke scripts do not assert this yet.
+
 ## Local state
 
 - `tests/integration/.openclaw-state/` — gateway config and plugin install metadata (gitignored)

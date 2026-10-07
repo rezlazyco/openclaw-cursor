@@ -20,6 +20,12 @@ export type CursorPluginConfig = {
      * corporate / country proxies that break HTTP/2).
      */
     useHttp1ForAgent: boolean;
+    backgroundJobs: {
+      enabled: boolean;
+      maxConcurrent: number;
+      notifyOnComplete: boolean;
+      persistJobs: boolean;
+    };
   };
   cloud: {
     repoUrl?: string;
@@ -42,6 +48,12 @@ const DEFAULTS: CursorPluginConfig = {
     sandboxEnabled: false,
     autoReview: false,
     useHttp1ForAgent: false,
+    backgroundJobs: {
+      enabled: true,
+      maxConcurrent: 2,
+      notifyOnComplete: true,
+      persistJobs: false,
+    },
   },
   cloud: {
     autoCreatePR: false,
@@ -87,6 +99,7 @@ export function readCursorPluginConfig(pluginConfig: unknown): CursorPluginConfi
 
   const discovery = isRecord(pluginConfig.discovery) ? pluginConfig.discovery : {};
   const local = isRecord(pluginConfig.local) ? pluginConfig.local : {};
+  const backgroundJobs = isRecord(local.backgroundJobs) ? local.backgroundJobs : {};
   const cloud = isRecord(pluginConfig.cloud) ? pluginConfig.cloud : {};
   const runtimeRaw = readString(pluginConfig.runtime)?.toLowerCase();
   const runtime: CursorRuntimeMode = runtimeRaw === "cloud" ? "cloud" : "local";
@@ -110,6 +123,21 @@ export function readCursorPluginConfig(pluginConfig: unknown): CursorPluginConfi
       sandboxEnabled: readBoolean(local.sandboxEnabled, DEFAULTS.local.sandboxEnabled),
       autoReview: readBoolean(local.autoReview, DEFAULTS.local.autoReview),
       useHttp1ForAgent: readBoolean(local.useHttp1ForAgent, DEFAULTS.local.useHttp1ForAgent),
+      backgroundJobs: {
+        enabled: readBoolean(backgroundJobs.enabled, DEFAULTS.local.backgroundJobs.enabled),
+        maxConcurrent: readNumber(
+          backgroundJobs.maxConcurrent,
+          DEFAULTS.local.backgroundJobs.maxConcurrent,
+        ),
+        notifyOnComplete: readBoolean(
+          backgroundJobs.notifyOnComplete,
+          DEFAULTS.local.backgroundJobs.notifyOnComplete,
+        ),
+        persistJobs: readBoolean(
+          backgroundJobs.persistJobs,
+          DEFAULTS.local.backgroundJobs.persistJobs,
+        ),
+      },
     },
     cloud: {
       repoUrl: readString(cloud.repoUrl),

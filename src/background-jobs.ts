@@ -8,6 +8,12 @@ import path from "node:path";
 import { Agent, type SDKAgent } from "@cursor/sdk";
 import { resolveCursorApiKey } from "./auth.js";
 import type { CursorPluginConfig } from "./config.js";
+import {
+  buildCursorFailure,
+  failureKindForCaught,
+  logCursorFailure,
+  type CursorPluginLogger,
+} from "./cursor-failure.js";
 import { createCursorStreamBridge } from "./event-bridge.js";
 import { applyCursorSdkNetworkConfig } from "./sdk-network.js";
 import { deliverBackgroundJobCompletion } from "./background-jobs-deliver.js";
@@ -362,9 +368,15 @@ class BackgroundJobRegistry {
         job.status = "cancelled";
       } else if (result.status === "error" || bridge.state.streamError) {
         job.status = "failed";
-        job.error =
-          bridge.state.streamError?.message ??
-          `Cursor run ${result.id} failed with status ${result.status}`;
+        const failure = buildCursorFailure({
+          kind: "run_error",
+          runResult: result.status === "error" ? result : undefined,
+          streamError: bridge.state.streamError,
+          cursorAgentId: job.cursorAgentId,
+          fallbackMessage: `Cursor run ${result.id} failed with status ${result.status}`,
+        });
+        logCursorFailure(backgroundJobLogger, `background-job ${job.id}`, failure);
+        job.error = failure.message;
       } else {
         job.status = "succeeded";
       }
@@ -375,9 +387,16 @@ class BackgroundJobRegistry {
     } catch (error) {
       if (this.jobs.get(job.id)?.status !== "cancelled") {
         job.status = "failed";
-        job.error = error instanceof Error ? error.message : String(error);
+        const failure = buildCursorFailure({
+          kind: failureKindForCaught(error),
+          caught: error,
+          cursorAgentId: job.cursorAgentId,
+        });
+        logCursorFailure(backgroundJobLogger, `background-job ${job.id}`, failure);
+        job.error = failure.message;
         job.updatedAt = Date.now();
         this.touch(job);
+        await notifyJobTerminal(job, pluginConfig);
       }
     } finally {
       this.activeRuns.delete(job.id);
@@ -387,6 +406,15 @@ class BackgroundJobRegistry {
 }
 
 let registrySingleton: BackgroundJobRegistry | undefined;
+let backgroundJobLogger: CursorPluginLogger | undefined;
+
+export function configureBackgroundJobRegistryLogger(logger?: CursorPluginLogger): void {
+  backgroundJobLogger = logger;
+}
+
+export function resetBackgroundJobRegistryLoggerForTests(): void {
+  backgroundJobLogger = undefined;
+}
 
 export function getBackgroundJobRegistry(pluginConfig: CursorPluginConfig): BackgroundJobRegistry {
   if (!registrySingleton) {

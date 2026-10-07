@@ -29,6 +29,7 @@ import {
 } from "./src/session-binding.js";
 import { ensureCursorRipgrepConfigured } from "./src/ripgrep.js";
 import { readCursorPluginConfig } from "./src/config.js";
+import { configureBackgroundJobRegistryLogger } from "./src/background-jobs.js";
 import { configureBackgroundJobWorkflow } from "./src/background-jobs-workflow.js";
 import { applyCursorSdkNetworkConfig } from "./src/sdk-network.js";
 
@@ -68,6 +69,7 @@ export default definePluginEntry({
   description: "Cursor SDK harness and Cursor-managed model catalog.",
   register(api) {
     ensureCursorRipgrepConfigured(api.logger);
+    configureBackgroundJobRegistryLogger(api.logger);
     applyCursorSdkNetworkConfig(readCursorPluginConfig(api.pluginConfig));
 
     const resolveCurrentConfig = () =>
@@ -131,6 +133,7 @@ export default definePluginEntry({
         bindingStore,
         resolveConfig: resolveCurrentConfig,
         resolvePluginConfig: resolveCurrentPluginConfig,
+        logger: api.logger,
       }),
     );
     api.registerProvider(buildCursorProvider({ pluginConfig: api.pluginConfig }));

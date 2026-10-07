@@ -1,7 +1,7 @@
 /**
  * Cursor SDK turn executor for OpenClaw agent harness attempts.
  */
-import { Agent, CursorAgentError, type SDKAgent } from "@cursor/sdk";
+import { Agent, type SDKAgent } from "@cursor/sdk";
 import {
   awaitAgentEndSideEffects,
   buildAgentHookContextChannelFields,
@@ -34,6 +34,13 @@ import {
   type CursorBindingStore,
 } from "./session-binding.js";
 import { trackCursorActiveRun } from "./conversation-control.js";
+import {
+  buildCursorFailure,
+  failureKindForCaught,
+  logCursorFailure,
+  promptErrorFromCursorFailure,
+  type CursorPluginLogger,
+} from "./cursor-failure.js";
 import { createCursorAttemptResult, createPromptError } from "./result.js";
 import {
   attachCursorMirrorIdentity,
@@ -52,6 +59,7 @@ export type CursorAttemptDeps = {
   bindingStore?: CursorBindingStore;
   pluginConfig?: unknown;
   resolvePluginConfig?: () => unknown;
+  logger?: CursorPluginLogger;
   onAgentEstablished?: (info: {
     agentId: string;
     compatKey: string;
@@ -539,14 +547,29 @@ export async function runCursorAttempt(
           };
         }
         if (result.status === "error") {
-          promptError =
-            bridge.state.streamError ??
-            createPromptError("run_error", `Cursor run ${result.id} failed with status error`);
+          const failure = buildCursorFailure({
+            kind: "run_error",
+            runResult: result,
+            streamError: bridge.state.streamError,
+            cursorAgentId,
+            fallbackMessage: `Cursor run ${result.id} failed with status error`,
+          });
+          logCursorFailure(deps.logger, "attempt", failure);
+          promptError = promptErrorFromCursorFailure(
+            failure,
+            bridge.state.streamError ?? result.error,
+          );
         } else if (result.status === "cancelled") {
           aborted = true;
         }
         if (bridge.state.streamError && !promptError) {
-          promptError = bridge.state.streamError;
+          const failure = buildCursorFailure({
+            kind: "run_error",
+            streamError: bridge.state.streamError,
+            cursorAgentId,
+          });
+          logCursorFailure(deps.logger, "attempt", failure);
+          promptError = promptErrorFromCursorFailure(failure, bridge.state.streamError);
         }
       }
     } finally {
@@ -555,11 +578,13 @@ export async function runCursorAttempt(
     }
   } catch (error) {
     completed = true;
-    if (error instanceof CursorAgentError) {
-      promptError = createPromptError("cursor_agent_error", error.message, error);
-    } else {
-      promptError = createPromptError("attempt_failed", toError(error).message, error);
-    }
+    const failure = buildCursorFailure({
+      kind: failureKindForCaught(error),
+      caught: error,
+      cursorAgentId,
+    });
+    logCursorFailure(deps.logger, "attempt", failure);
+    promptError = promptErrorFromCursorFailure(failure, error);
   } finally {
     params.abortSignal?.removeEventListener("abort", abortHandler);
     clearActiveEmbeddedRun(

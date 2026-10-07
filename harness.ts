@@ -44,6 +44,11 @@ const CURSOR_CONTEXT_ENGINE_HOST_CAPABILITIES = [
  * Creates the Cursor SDK harness used for attempts, side questions,
  * compaction, reset, and disposal.
  */
+type CursorHarnessLogger = {
+  warn?: (message: string) => void;
+  debug?: (message: string) => void;
+};
+
 export function createCursorAgentHarness(options: {
   id?: string;
   label?: string;
@@ -52,6 +57,7 @@ export function createCursorAgentHarness(options: {
   resolvePluginConfig?: () => unknown;
   resolveConfig?: () => OpenClawConfig | undefined;
   bindingStore: CursorBindingStore;
+  logger?: CursorHarnessLogger;
 }): AgentHarness {
   const providerIds = new Set(
     [...(options.providerIds ?? DEFAULT_CURSOR_HARNESS_PROVIDER_IDS)].map((id) =>
@@ -103,6 +109,7 @@ export function createCursorAgentHarness(options: {
             bindingStore: options.bindingStore,
             pluginConfig: options.resolvePluginConfig?.() ?? options.pluginConfig,
             resolvePluginConfig: options.resolvePluginConfig,
+            logger: options.logger,
             onAgentEstablished: openclawSessionId
               ? async ({ agentId, compatKey, runtime, storeKey, sessionId }) => {
                   tracked.set(storeKey, { agentId, compatKey, runtime });

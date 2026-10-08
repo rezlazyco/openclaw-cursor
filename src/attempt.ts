@@ -33,7 +33,9 @@ import {
   sessionBindingIdentity,
   type CursorBindingStore,
 } from "./session-binding.js";
-import { trackCursorActiveRun } from "./conversation-control.js";
+import { isCursorActiveRunConflict } from "./agent-run-conflict.js";
+import { enqueueAgentTurn } from "./agent-turn-queue.js";
+import { readCursorActiveRun, trackCursorActiveRun } from "./conversation-control.js";
 import {
   buildCursorFailure,
   failureKindForCaught,
@@ -83,6 +85,25 @@ function resolveWorkspaceDir(params: AgentHarnessAttemptParams): string {
     readString(params.workspaceDir) ??
     process.cwd()
   );
+}
+
+function resolveAttemptQueueKey(params: AgentHarnessAttemptParams): string {
+  const openclawSessionId = readString(params.sessionId);
+  if (!openclawSessionId) {
+    return `attempt:${readString(params.runId) ?? Date.now()}`;
+  }
+  const { sessionAgentId } = resolveSessionAgentIds({
+    sessionKey: readString(params.sessionKey),
+    config: params.config,
+    agentId: readString(params.agentId),
+  });
+  const identity = sessionBindingIdentity({
+    sessionId: openclawSessionId,
+    sessionKey: readString(params.sessionKey),
+    agentId: sessionAgentId,
+    config: params.config,
+  });
+  return bindingStoreKey(identity);
 }
 
 function resolveModelId(params: AgentHarnessAttemptParams): string {
@@ -279,6 +300,35 @@ export async function runCursorAttempt(
       promptError: createPromptError("auth_missing", toError(error).message, error),
     });
   }
+
+  return enqueueAgentTurn(resolveAttemptQueueKey(params), () =>
+    runCursorAttemptQueued(params, deps, {
+      pluginConfig,
+      auth,
+      provider,
+      sessionAgentId,
+      hookContext,
+      workspaceDir,
+      modelId,
+    }),
+  );
+}
+
+async function runCursorAttemptQueued(
+  params: AgentHarnessAttemptParams,
+  deps: CursorAttemptDeps,
+  ctx: {
+    pluginConfig: CursorPluginConfig;
+    auth: ReturnType<typeof resolveCursorApiKey>;
+    provider: string;
+    sessionAgentId: string;
+    hookContext: Record<string, unknown>;
+    workspaceDir: string;
+    modelId: string;
+  },
+): Promise<AgentHarnessAttemptResult> {
+  const { pluginConfig, auth, provider, sessionAgentId, hookContext, workspaceDir, modelId } =
+    ctx;
 
   const userPromptText =
     typeof params.transcriptPrompt === "string" && params.transcriptPrompt.trim()
@@ -478,12 +528,50 @@ export async function runCursorAttempt(
     const sendMessage =
       promptImages.length > 0 ? { text: promptText, images: promptImages } : promptText;
 
-    // Inline mcpServers are not persisted across resume; pass on every send too.
-    const run = await agent.send(sendMessage, {
+    const sendOptions = {
       ...(mcpServers ? { mcpServers } : {}),
       ...(pluginConfig.runtime === "local" && customTools
         ? { local: { customTools } }
         : {}),
+    };
+    const activeRunKey = storeKey ?? params.sessionId;
+    const boundAgent = agent;
+    const run = await sendCursorMessageWithActiveRunRecovery({
+      agent: boundAgent,
+      sendMessage,
+      sendOptions,
+      onRecover: async () => {
+        const tracked = readCursorActiveRun(activeRunKey);
+        if (tracked) {
+          await tracked.cancel().catch(() => undefined);
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          return boundAgent;
+        }
+        clearStoredBinding({
+          bindingStore: deps.bindingStore,
+          storeKey,
+          openclawSessionId,
+        });
+        await disposeAgent(agent);
+        const fresh = await createOrResumeAgent({
+          apiKey: auth.apiKey,
+          modelId,
+          workspaceDir,
+          pluginConfig,
+          customTools,
+          mcpServers,
+        });
+        agent = fresh;
+        cursorAgentId = fresh.agentId;
+        await deps.onAgentEstablished?.({
+          agentId: fresh.agentId,
+          compatKey,
+          runtime: pluginConfig.runtime,
+          storeKey: storeKey ?? openclawSessionId ?? params.sessionId,
+          sessionId: openclawSessionId ?? params.sessionId,
+        });
+        return fresh;
+      },
     });
     activeRun = run;
     const untrackActive = trackCursorActiveRun(storeKey ?? params.sessionId, {
@@ -692,4 +780,21 @@ export async function runCursorAttempt(
   }
 
   return attemptResult;
+}
+
+async function sendCursorMessageWithActiveRunRecovery(params: {
+  agent: SDKAgent;
+  sendMessage: Parameters<SDKAgent["send"]>[0];
+  sendOptions: Parameters<SDKAgent["send"]>[1];
+  onRecover: () => Promise<SDKAgent>;
+}): Promise<Awaited<ReturnType<SDKAgent["send"]>>> {
+  try {
+    return await params.agent.send(params.sendMessage, params.sendOptions);
+  } catch (error) {
+    if (!isCursorActiveRunConflict(error)) {
+      throw error;
+    }
+    const recoveredAgent = await params.onRecover();
+    return await recoveredAgent.send(params.sendMessage, params.sendOptions);
+  }
 }

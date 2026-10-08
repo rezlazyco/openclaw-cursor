@@ -27,6 +27,7 @@ import {
   type StoredCursorBinding,
 } from "./session-binding.js";
 import { withCursorBindingLease } from "./binding-store.js";
+import { enqueueAgentTurn } from "./agent-turn-queue.js";
 import { trackCursorActiveRun } from "./conversation-control.js";
 import { buildBackgroundJobCustomTools } from "./background-jobs-tool.js";
 import { mergeCursorCustomTools } from "./custom-tools-merge.js";
@@ -46,27 +47,6 @@ export type CursorConversationBindingResolvedEvent = {
   status: "approved" | "denied";
   request: { data?: Record<string, unknown> };
 };
-
-const turnQueues = new Map<string, Promise<unknown>>();
-
-async function enqueueBoundTurn<T>(bindingId: string, task: () => Promise<T>): Promise<T> {
-  const previous = turnQueues.get(bindingId) ?? Promise.resolve();
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const next = previous.catch(() => undefined).then(() => gate);
-  turnQueues.set(bindingId, next);
-  await previous.catch(() => undefined);
-  try {
-    return await task();
-  } finally {
-    release();
-    if (turnQueues.get(bindingId) === next) {
-      turnQueues.delete(bindingId);
-    }
-  }
-}
 
 async function disposeAgent(agent: SDKAgent | undefined): Promise<void> {
   if (!agent) {
@@ -363,7 +343,7 @@ export async function handleCursorConversationInboundClaim(
   }
 
   try {
-    const result = await enqueueBoundTurn(data.bindingId, () =>
+    const result = await enqueueAgentTurn(`conversation:${data.bindingId}`, () =>
       runBoundTurn({
         data,
         prompt,

@@ -10,6 +10,9 @@
     "onStartup": false,
     "onAgentHarnesses": ["cursor"]
   },
+  "contracts": {
+    "tools": ["cursor_agents"]
+  },
   "commandAliases": [
     {
       "name": "cursor",

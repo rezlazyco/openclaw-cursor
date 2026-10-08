@@ -1,6 +1,6 @@
 {
   "name": "@rezlazyco/openclaw-cursor",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "OpenClaw Cursor agent harness and model provider plugin backed by @cursor/sdk.",
   "type": "module",
   "license": "MIT",

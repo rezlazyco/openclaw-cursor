@@ -290,11 +290,14 @@ function helpText(): CursorCommandResult {
   };
 }
 
-/** Creates the reserved `/cursor` command definition. */
-export function createCursorCommand(options: CursorCommandOptions): {
+/** Creates the `/cursor` plugin command definition. */
+export function createCursorCommand(
+  options: CursorCommandOptions,
+  opts?: { reservedOwnership?: boolean },
+): {
   name: string;
   description: string;
-  ownership: "reserved";
+  ownership?: "reserved";
   acceptsArgs: boolean;
   requireAuth: boolean;
   handler: (ctx: CursorCommandContext) => Promise<CursorCommandResult>;
@@ -302,7 +305,7 @@ export function createCursorCommand(options: CursorCommandOptions): {
   return {
     name: "cursor",
     description: "Inspect and control the Cursor SDK harness / conversation binds",
-    ownership: "reserved",
+    ...(opts?.reservedOwnership ? { ownership: "reserved" as const } : {}),
     acceptsArgs: true,
     requireAuth: true,
     handler: (ctx) => handleCursorCommand(ctx, options),

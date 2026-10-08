@@ -135,9 +135,17 @@ describe("/cursor commands", () => {
     expect(store.lookup(conversationKey("bind-1"))).toBeUndefined();
   });
 
-  it("creates a reserved command definition", () => {
+  it("creates a command definition without reserved ownership by default", () => {
     const command = createCursorCommand({ bindingStore: memoryStore() });
     expect(command.name).toBe("cursor");
+    expect(command.ownership).toBeUndefined();
+  });
+
+  it("supports reserved ownership for bundled installs", () => {
+    const command = createCursorCommand(
+      { bindingStore: memoryStore() },
+      { reservedOwnership: true },
+    );
     expect(command.ownership).toBe("reserved");
   });
 });

@@ -48,6 +48,15 @@ type PluginLogger = {
   debug?: (message: string) => void;
 };
 
+/** Reserved `/cursor` ownership is only allowed for OpenClaw bundled extension installs. */
+function isBundledCursorPluginInstall(api: { source?: string; rootDir?: string }): boolean {
+  const path = `${api.source ?? ""}|${api.rootDir ?? ""}`.replaceAll("\\", "/");
+  if (path.includes("@rezlazyco/openclaw-cursor")) {
+    return false;
+  }
+  return path.includes("/extensions/cursor");
+}
+
 function logFileBindingFallback(
   logger: PluginLogger,
   bindingsPath: string,
@@ -160,10 +169,13 @@ export default definePluginEntry({
       tags: ["cursor", "sessions"],
     });
     api.registerCommand(
-      createCursorCommand({
-        bindingStore,
-        resolvePluginConfig: resolveCurrentPluginConfig,
-      }),
+      createCursorCommand(
+        {
+          bindingStore,
+          resolvePluginConfig: resolveCurrentPluginConfig,
+        },
+        { reservedOwnership: isBundledCursorPluginInstall(api) },
+      ),
     );
 
     api.on("inbound_claim", (event: unknown, ctx: unknown) =>
